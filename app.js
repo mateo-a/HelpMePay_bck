@@ -1,9 +1,14 @@
 // Requires
 const express = require('express');
-
+const admin = require('firebase-admin');
 
 //Initializ variables
 const app = express();
+const serviceAccount = require("./serviceAccountKey.json");
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
 
 //Route
 app.get('/', (req, res) => {
