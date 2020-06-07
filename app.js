@@ -1,17 +1,33 @@
 // Requires
 const express = require('express');
 const admin = require('firebase-admin');
+const bodyParser = require('body-parser');
+//var cors = require('cors');
 
 //Initializ variables
 const app = express();
+//var corsOptions = {
+//    origing: 'https://helpmepay-e3b6e.web.app/',
+//    optionsSuccessStatus: 200
+//}
+//app.use(cors(corsOptions));
 const serviceAccount = require("./serviceAccountKey.json");
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
+//    databaseURL: "https://helpmepay-e3b6e.firebaseapp.com/"
 });
 const db = admin.firestore();
 
+//Body Parser aplicattion/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false}));
+app.use(bodyParser.json());
+
+// Import Routes
+var inversores = require('./inversores/routesInversores');
+
 //Route
-app.get('/', (req, res) => {
+app.use('/api/inversores', inversores);
+app.get('/api/', (req, res) => {
     res
         .status(200)
         .json({
