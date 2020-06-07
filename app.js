@@ -23,7 +23,8 @@ app.use(bodyParser.urlencoded({ extended: false}));
 app.use(bodyParser.json());
 
 // Import Routes
-var inversores = require('./inversores/routesInversores');
+var inversores = require('./inversores/routesInvestors');
+
 
 //Route
 app.use('/api/inversores', inversores);
