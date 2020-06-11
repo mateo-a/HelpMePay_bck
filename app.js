@@ -2,44 +2,47 @@
 const express = require('express');
 const admin = require('firebase-admin');
 const bodyParser = require('body-parser');
-//var cors = require('cors');
+// var cors = require('cors');
 
-//Initializ variables
+// Initializ variables
 const app = express();
-//var corsOptions = {
+// var corsOptions = {
 //    origing: 'https://helpmepay-e3b6e.web.app/',
 //    optionsSuccessStatus: 200
-//}
-//app.use(cors(corsOptions));
-const serviceAccount = require("./serviceAccountKey.json");
+// }
+// app.use(cors(corsOptions));
+const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(serviceAccount)
 //    databaseURL: "https://helpmepay-e3b6e.firebaseapp.com/"
 });
 const db = admin.firestore();
 
-//Body Parser aplicattion/x-www-form-urlencoded
-app.use(bodyParser.urlencoded({ extended: false}));
+// Body Parser aplicattion/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 // Import Routes
-var inversores = require('./inversores/routesInvestors');
+var inversores = require('./inversores/routesInversores');
+var workers = require('./workers/routesWorkers');
+var negocios = require('./negocios/routesNegocios');
 
-
-//Route
+// Route
 app.use('/api/inversores', inversores);
+app.use('/api/workers', workers);
+app.use('/api/negocios', negocios);
 app.get('/api/', (req, res) => {
-    res
-        .status(200)
-        .json({
-	    ok: true,
-	    mensaje: 'Peticion ok'
-	})
-        .end();
+  res
+    .status(200)
+    .json({
+      ok: true,
+      mensaje: 'Peticion ok'
+    })
+    .end();
 });
 
 // Start the server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log('Express server: \x1b[32m%s\x1b[0m','online');
-})
+  console.log('Express server: \x1b[32m%s\x1b[0m', 'online');
+});
