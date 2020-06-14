@@ -8,57 +8,70 @@ const investorRef = db.collection('inversionistas');
 const negocioRef = db.collection('negocios');
 const workerRef = db.collection('workers');
 
-// Funciones
-function crearnegocio(idinversionista, idnegocio) {
-  investorRef.doc(idinversionista).collection('negocios').doc(idnegocio).set({
+function agregarInversionista (idinversionista, idnegocio, porcentaje, estado, aporte) {
+  negocioRef.doc(idnegocio).collection('inversionistas').doc(idinversionista).get().then(inversor => {
+    const datos = inversor.data();
+    if (!inversor.exists) {
+      investorRef.doc(idinversionista).collection('negocios').doc(idnegocio).set({
+      });
+      negocioRef.doc(idnegocio).collection('inversionistas').doc(idinversionista).set({
+        aporte: aporte,
+        estado: estado,
+        ganancia: 0,
+        vrPagado: 0,
+        saldo: aporte,
+        porcAporte: porcentaje
+      });
+    } else {
+      negocioRef.doc(idnegocio).collection('inversionistas').doc(idinversionista).update({
+        aporte: datos.aporte + aporte,
+        estado: estado,
+        ganancia: 0,
+        vrPagado: 0,
+        saldo: datos.saldo + aporte,
+        porcAporte: porcentaje + datos.porcAporte
+      });
+    }
   });
 }
 
-function agregarInversionista(idinversionista, idnegocio, aporte, porcentaje, estado) {
-  negocioRef.doc(idnegocio).collection('inversionistas').doc(idinversionista).set({
-    aporte: aporte,
-    estado: estado,
-    ganancia: 0,
-    vrPagado: 0,
-    saldo: aporte,
-    porcAporte: porcentaje
-  });
-}
-
-function actualizarBalance(idinversionista, aporte) {
-  investorRef.doc(idinversionista).get().then(ref => {
-    const datos = ref.data();
-    let aportes = datos.aportes + aporte;
-    let contribucion = datos.contribucion - aporte ;
-    
-    investorRef.doc(idinversionista).update({
-      aportes: aportes,
-      contribucion: contribucion
+function actualizarBalance (idinversionista, idnegocio) {
+  negocioRef.doc(idnegocio).collection('inversionistas').doc(idinversionista).get().then(investor => {
+    const datosInv = investor.data();
+    investorRef.doc(idinversionista).get().then(ref => {
+      console.log('Actualizar Balance para: ', idinversionista);
+      const datos = ref.data();
+      const aportes = datos.aportes + datosInv.aporte;
+      const contribucion = datos.contribucion - datosInv.aporte;
+      investorRef.doc(idinversionista).update({
+        aportes: aportes,
+        contribucion: contribucion
+      });
     });
   });
 }
 
-function activarPrestamo (idnegocio) {
+function activarPrestamo (idnegocio, idinversionista) {
   negocioRef.doc(idnegocio).update({
     estado: 'prestamo'
   });
 
-  negocioRef.doc(idnegocio).get().then(ref => {
-    const datos = ref.data();
-        workerRef.doc(datos.worker).collection('negocios').doc(idnegocio).update({
-        estado: 'prestamo'
-      })
+  negocioRef.doc(idnegocio).get().then(datosNegocio => {
+    const datosNeg = datosNegocio.data();
+    workerRef.doc(datosNeg.worker).collection('negocios').doc(idnegocio).update({
+      estado: 'prestamo'
+    });
   });
-
-  negocioRef.doc(idnegocio).collection('inversionistas').where('estado', '==', 'abierto').get().then(ref => {
-    ref.forEach(doc => {
-      actualizarBalance(doc.id, doc.data().aporte);
-      negocioRef.doc(idnegocio).collection('inversionistas').doc(doc.id).update({
-        estado: 'prestamo'
+  // negocioRef.doc(idnegocio).collection('inversionistas').where('estado', '==', 'abierto').get().then(ref => {
+  negocioRef.doc(idnegocio).collection('inversionistas').get().then(querySnapshot => {
+    negocioRef.doc(idnegocio).collection('inversionistas').get().then(ref => {
+      ref.forEach(doc => {
+        console.log('Id Inversionista para actualizar: ', doc.id);
+        actualizarBalance(doc.id, idnegocio);
+        negocioRef.doc(idnegocio).collection('inversionistas').doc(doc.id).update({
+          estado: 'prestamo'
+        });
       });
-      
-      const datos = doc.data();
-
     });
   });
 }
@@ -90,7 +103,6 @@ investor.post('/add', async (req, res) => {
     recibido: 0
   })
     .then(ref => {
-      console.log(ref);
       res
         .status(201)
         .json({
@@ -128,10 +140,9 @@ investor.post('/aportar', async (req, res) => {
   const data = req.body;
   console.log(data.idinversionista);
 
-  investorRef.doc(data.idinversionista).get().then(ref => {
-    const datos = ref.data();
+  investorRef.doc(data.idinversionista).get().then(inversor => {
+    const datos = inversor.data();
     var aporte = parseInt(data.aporte);
-    var aportesInv = parseInt(datos.aportes);
     var capitalInv = parseInt(datos.capital);
     var estadoNegocio = 'abierto';
 
@@ -139,41 +150,59 @@ investor.post('/aportar', async (req, res) => {
       const datosNegocio = negocio.data();
       var aportesNeg = parseInt(datosNegocio.aportes);
       var saldoAporte = parseInt(datosNegocio.saldoAportes);
-      if (aporte < saldoAporte) {
-        saldoAporte -= aporte;
-        aportesInv += aporte;
-        capitalInv -= aporte;
-      } else if (aporte === saldoAporte) {
-        saldoAporte = 0;
-        aportesInv += aporte;
-        capitalInv -= aporte;
-        activarPrestamo(data.idnegocio);
+      var acPrestamo = 0;
+      if (datosNegocio.estado === 'abierto') {
+        if (aporte < saldoAporte) {
+          saldoAporte -= aporte;
+          capitalInv -= aporte;
+        } else if (aporte === saldoAporte) {
+          saldoAporte = 0;
+          capitalInv -= aporte;
+          acPrestamo = 1;
+        } else {
+          aporte = saldoAporte;
+          capitalInv -= aporte;
+          saldoAporte = 0;
+          console.log('\nCapital Inversionista: ', capitalInv);
+          console.log('Saldo Aportes Inversionista: ', saldoAporte);
+          acPrestamo = 1;
+        }
+        negocioRef.doc(data.idnegocio).update({
+          aportes: aportesNeg + aporte,
+          saldoAportes: saldoAporte
+        });
+        const vrSolicitado = parseInt(datosNegocio.monto);
+        const porcentaje = (aporte * 100) / vrSolicitado;
+        const contribucion = parseInt(datos.contribucion) + parseInt(aporte);
+        agregarInversionista(data.idinversionista, data.idnegocio, porcentaje, estadoNegocio, aporte);
+        investorRef.doc(data.idinversionista).update({
+          capital: capitalInv,
+          contribucion: contribucion
+        });
+        if (acPrestamo === 1) {
+          activarPrestamo(data.idnegocio, data.idinversionista);
+          res
+            .status(200)
+            .json({
+              ok: true,
+              mensaje: 'Aporte Realizado y Prestamo Activado!'
+            });
+        } else {
+          res
+            .status(200)
+            .json({
+              ok: true,
+              mensaje: 'Aporte Realizado!'
+            });
+        }
       } else {
-        capitalInv -= saldoAporte;
-        aportesInv += saldoAporte;
-        saldoAporte = 0;
-        activarPrestamo(data.idnegocio);
-      }
-      negocioRef.doc(data.idnegocio).update({
-        aportes: aportesNeg + aportesInv,
-        saldoAportes: saldoAporte
-      });
-      const vrSolicitado = parseInt(datosNegocio.monto);
-      const porcentaje = (aportesInv * 100) / vrSolicitado;
-      const contribucion = parseInt(datos.contribucion) + parseInt(aportesInv);
-      agregarInversionista(data.idinversionista, data.idnegocio, aportesInv, porcentaje, estadoNegocio);
-      crearnegocio(data.idinversionista, data.idnegocio);
-      investorRef.doc(data.idinversionista).update({
-        capital: capitalInv,
-        contribucion: contribucion
-      }).then(ref => {
         res
-          .status(200)
+          .status(403)
           .json({
-            ok: true,
-            mensaje: 'Aporte Realizado!'
+            ok: false,
+            mensaje: 'Este negocio ya no se encuentra abierto para recibir aportes.'
           });
-      });
+      }
     });
   });
 });
@@ -182,25 +211,25 @@ investor.post('/aportar', async (req, res) => {
 investor.get('/get/:id', async (req, res) => {
   const idinversionista = req.params.id;
 
-  investorRef.doc(idinversionista).get().then( inversionista => {
+  investorRef.doc(idinversionista).get().then(inversionista => {
     res.status(200)
-    .json(inversionista.data())
-  })
+      .json(inversionista.data());
+  });
 });
 
 // Consultar Negocios del Inversionista
 investor.get('/negocios/:id', async (req, res) => {
   const idinversionista = req.params.id;
 
-  investorRef.doc(idinversionista).collection('negocios').get().then( negocios => {
-    let datanegocios = [];
+  investorRef.doc(idinversionista).collection('negocios').get().then(negocios => {
+    const datanegocios = [];
     negocios.forEach(doc => {
       datanegocios.push({
-        'id': doc.id,
+        id: doc.id
       });
     });
     res.status(200)
-    .json(datanegocios)
+      .json(datanegocios);
   });
 });
 

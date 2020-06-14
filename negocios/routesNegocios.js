@@ -19,25 +19,25 @@ function cerrarNegocio (idnegocio, idworker) {
       negocioRef.doc(idnegocio).collection('inversionistas').doc(doc.id).update({
         estado: 'pagado'
       });
-    });    
+    });
   });
   workerRef.doc(idworker).collection('negocios').doc(idnegocio).update({
     estado: 'pagado'
   });
 }
 
-function actualizarWorker(idworker, idnegocio, aporte, interes) {
+function actualizarWorker (idworker, idnegocio, aporte, interes) {
   workerRef.doc(idworker).collection('negocios').doc(idnegocio).get().then(ref => {
     const dataWorker = ref.data();
     if (dataWorker.cuotasFaltantes - 1 === 0) {
-      cerrarNegocio (idnegocio, idworker);
+      cerrarNegocio(idnegocio, idworker);
     }
     const vrPagado = aporte + interes;
-  
+
     workerRef.doc(idworker).collection('negocios').doc(idnegocio).update({
       vrPagado: dataWorker.vrPagado + vrPagado,
       cuotasFaltantes: dataWorker.cuotasFaltantes - 1,
-      saldo: dataWorker.saldo - vrPagado,
+      saldo: dataWorker.saldo - vrPagado
     });
   });
 }
@@ -80,12 +80,10 @@ function actualizarCuota (idnegocio, idcuota) {
         });
       });
     });
-
   });
   negocioRef.doc(idnegocio).collection('cuotas').doc(idcuota).update({
     estado: 'pagada'
   });
-  
 }
 
 function crearcuotas (idnegocio, totalcuotas, valor, fechalimite, intereses, aportes) {
@@ -166,65 +164,63 @@ negocio.post('/add', async (req, res) => {
 // Realizar Pago a Negocio
 negocio.post('/pago', async (req, res) => {
   const data = req.body;
-  
   actualizarCuota(data.idnegocio, data.idcuota);
   res
-  .status(200)
-  .json({
-    ok: true,
-    data: 'Pago Realizado'
-  });  
+    .status(200)
+    .json({
+      ok: true,
+      data: 'Pago Realizado'
+    });
 });
-
 
 // Consultar Negocios Abiertos
 negocio.get('/abiertos/', async (req, res) => {
   negocioRef.where('estado', '==', 'abierto').get().then(ref => {
-    let datanegocios = [];
+    const datanegocios = [];
     ref.forEach(doc => {
       datanegocios.push({
-        'id': doc.id,
-        'data': doc.data()
+        id: doc.id,
+        data: doc.data()
       });
     });
     res
-    .status(201)
-    .json({
-      ok: true,
-      data: datanegocios
-    });
+      .status(201)
+      .json({
+        ok: true,
+        data: datanegocios
+      });
   });
 });
 
 // Consultar cuotas por Negocio (REVISAR!!!)
 negocio.get('/cuotas/:idnegocio', async (req, res) => {
   const idnegocio = req.params.idnegocio;
-  negocioRef.doc(idnegocio).collection('cuotas').get().then( cuota => {
-    let datacuotas = [];
+  negocioRef.doc(idnegocio).collection('cuotas').get().then(cuota => {
+    const datacuotas = [];
     cuota.forEach(doc => {
       datacuotas.push({
-        'id': doc.id,
-        'data': doc.data()
+        id: doc.id,
+        data: doc.data()
       });
     });
     res.status(200)
-    .json(datacuotas)
+      .json(datacuotas);
   });
 });
 
 // Consultar inversionistas por negocio
 negocio.get('/inversionista/:idnegocio', async (req, res) => {
   const idnegocio = req.params.idnegocio;
-  negocioRef.doc(idnegocio).collection('inversionistas').get().then( inversionista => {
-    let datainversionistas = [];
+  negocioRef.doc(idnegocio).collection('inversionistas').get().then(inversionista => {
+    const datainversionistas = [];
     inversionista.forEach(doc => {
       datainversionistas.push({
-        'id': doc.id,
-        'data': doc.data()
+        id: doc.id,
+        data: doc.data()
       });
     });
     res.status(200)
-    .json(datainversionistas)
+      .json(datainversionistas);
   });
 });
 
